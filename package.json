@@ -10,5 +10,13 @@
     "update:commit": "git submodule update --remote --merge --recursive && git commit -am \"chore: bump submodules to latest\"",
     "status": "git submodule status --recursive",
     "foreach": "git submodule foreach"
+  },
+  "dependencies": {
+    "@2oolkit/backpack-cli": "^0.1.0",
+    "@2oolkit/grvt-cli": "^0.1.2",
+    "@2oolkit/hyperliquid-cli": "^0.2.6",
+    "@2oolkit/kiwoom-cli": "^0.1.0",
+    "@2oolkit/pacifica-cli": "^0.1.2",
+    "@2oolkit/toss-cli": "^0.1.1"
   }
 }
