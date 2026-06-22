@@ -1,0 +1,18 @@
+[submodule "hyperliquid-cli"]
+	path = hyperliquid-cli
+	url = https://github.com/haeminmoon/hyperliquid-cli.git
+[submodule "kiwoom-cli"]
+	path = kiwoom-cli
+	url = https://github.com/haeminmoon/kiwoom-cli.git
+[submodule "toss-cli"]
+	path = toss-cli
+	url = https://github.com/haeminmoon/toss-cli.git
+[submodule "grvt-cli"]
+	path = grvt-cli
+	url = https://github.com/haeminmoon/grvt-cli.git
+[submodule "pacifica-cli"]
+	path = pacifica-cli
+	url = https://github.com/haeminmoon/pacifica-cli.git
+[submodule "backpack-cli"]
+	path = backpack-cli
+	url = https://github.com/haeminmoon/backpack-cli.git
