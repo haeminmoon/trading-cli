@@ -33,6 +33,21 @@ npm run trend:scan -- toss --symbols 329180,042660,010140 --tf 1d --concurrency 
 
 옵션: `--symbols a,b,c`(명시 종목 리스트; 종목명/코드 자동 해석) · `--tf 4h` · `--count 250`(최소 120) · `--filter long|short|all`(기본 long) · `--concurrency 8`(토스 등 rate-limit 거래소는 1 권장) · `--limit N`(앞 N개만) · `--image`(종목별 차트 PNG 생성, `--out` 폴더) · `--json`. 결과는 `EMA20vs100%`(추세 강도) 기준 정렬, 데이터(120봉) 부족 종목은 자동 제외됩니다.
 
+## 주도주 스캐너 (`trend:leaders`)
+
+대장주/주도주를 **종합 점수**로 랭킹합니다 (미너비니·오닐式). 0~100 균형 점수 = **상대강도(RS) %ile + 추세품질(정배열·EMA기울기·MACD) + 신고가 근접 + 유동성 %ile + 수급(외인·기관, 국내주 한정)** 의 평균.
+
+```bash
+npm run trend:leaders -- kiwoom                 # 국내주식: 거래대금 상위(ETF 제외)를 RS+추세+수급으로 랭킹
+npm run trend:leaders -- kiwoom --show 20 --image  # 상위 20 + 차트 PNG
+npm run trend:leaders -- grvt --show 15         # 암호화폐(grvt 전 종목)
+npm run trend:leaders -- kiwoom --include-etf    # ETF 포함
+```
+
+- **유니버스**: kiwoom → 거래대금 상위(`--top`, 기본 60, ETF 자동 제외) · `listSymbols` 거래소(grvt) → 전 종목 · 그 외 `--symbols a,b,c`.
+- 옵션: `--top N`(후보 수) · `--show N`(표시 상위, 기본 20) · `--count 252`(RS·신고가 계산용 일봉) · `--concurrency`(kiwoom 4 권장) · `--include-etf` · `--image` · `--json` · `--out`.
+- 점수 컬럼: `RS%`(시장 대비 상대강도 백분위) · `추세`(정배열 등 4조건 충족률) · `신고가%`(52주 고점 근접도) · `유동성%`(거래대금 백분위) · `수급`(외인+기관/한쪽/-).
+
 ## 거래소별 타임프레임
 
 | 거래소 | 종류 | 추세 타임프레임 | 심볼 입력 |

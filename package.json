@@ -13,6 +13,7 @@
     "foreach": "git submodule foreach",
     "trend": "tsx trend/trend.ts",
     "trend:scan": "tsx trend/scan.ts",
+    "trend:leaders": "tsx trend/leaders.ts",
     "test:trend": "vitest run trend"
   },
   "dependencies": {
