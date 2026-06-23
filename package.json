@@ -2,6 +2,7 @@
   "name": "trading-cli",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Aggregates exchange CLI repos (hyperliquid, kiwoom, toss, backpack, grvt, pacifica) as git submodules for unified management.",
   "scripts": {
     "init": "git submodule update --init --recursive",
@@ -9,14 +10,22 @@
     "update": "git submodule update --remote --merge --recursive",
     "update:commit": "git submodule update --remote --merge --recursive && git commit -am \"chore: bump submodules to latest\"",
     "status": "git submodule status --recursive",
-    "foreach": "git submodule foreach"
+    "foreach": "git submodule foreach",
+    "trend": "tsx trend/trend.ts",
+    "test:trend": "vitest run trend"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^1.0.0",
     "@2oolkit/backpack-cli": "^0.1.0",
     "@2oolkit/grvt-cli": "^0.1.2",
     "@2oolkit/hyperliquid-cli": "^0.2.6",
     "@2oolkit/kiwoom-cli": "^0.1.0",
     "@2oolkit/pacifica-cli": "^0.1.2",
     "@2oolkit/toss-cli": "^0.1.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "tsx": "^4.22.4",
+    "vitest": "^4.1.9"
   }
 }
