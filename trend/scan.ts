@@ -49,15 +49,12 @@ async function main() {
   const argv = process.argv.slice(2);
   const exchange = argv.find((a) => !a.startsWith('--') && !/^\d+$/.test(a));
   if (!exchange || !ADAPTERS[exchange.toLowerCase()]) {
-    console.error(`Usage: npm run trend:scan -- <exchange> [--tf 4h] [--filter long|short|all] [--json]\n` +
-      `Exchanges with scan support: ${Object.entries(ADAPTERS).filter(([, a]) => a.listSymbols).map(([k]) => k).join(', ') || '(none)'}`);
+    console.error(`Usage: npm run trend:scan -- <exchange> [--symbols a,b,c] [--tf 4h] [--filter long|short|all] [--json]\n` +
+      `Full-list scan (listSymbols): ${Object.entries(ADAPTERS).filter(([, a]) => a.listSymbols).map(([k]) => k).join(', ') || '(none)'}. ` +
+      `Any exchange works with an explicit --symbols list.`);
     process.exit(1);
   }
   const adapter = ADAPTERS[exchange.toLowerCase()];
-  if (!adapter.listSymbols) {
-    console.error(`"${exchange}" adapter does not support listing symbols yet (no listSymbols).`);
-    process.exit(1);
-  }
 
   const tf = arg(argv, '--tf', '4h')!;
   const count = Math.max(120, parseInt(arg(argv, '--count', '250')!, 10) || 250);
@@ -67,13 +64,20 @@ async function main() {
   const json = argv.includes('--json');
   const wantSignal: Signal | null = filter === 'long' ? 1 : filter === 'short' ? -1 : null;
 
-  let symbols = await adapter.listSymbols();
+  const symbolsArg = arg(argv, '--symbols');
+  const explicit = symbolsArg ? symbolsArg.split(',').map((s) => s.trim()).filter(Boolean) : null;
+  if (!explicit && !adapter.listSymbols) {
+    console.error(`"${exchange}" has no symbol list — pass an explicit universe with --symbols a,b,c.`);
+    process.exit(1);
+  }
+  let symbols = explicit ?? (await adapter.listSymbols!());
   if (limit) symbols = symbols.slice(0, limit);
   if (!json) console.error(`Scanning ${symbols.length} ${exchange} symbols on ${tf} (count=${count}, conc=${concurrency})…`);
 
   let skipped = 0;
-  const results = await mapPool(symbols, concurrency, async (symbol): Promise<Row | null> => {
+  const results = await mapPool(symbols, concurrency, async (raw): Promise<Row | null> => {
     try {
+      const symbol = explicit ? await adapter.resolveSymbol(raw) : raw;
       const candles = await adapter.fetchCandles(symbol, tf, count);
       const indicators = computeIndicators(candles);
       const { signal } = evaluateSignal(indicators);
