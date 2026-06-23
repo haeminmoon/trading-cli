@@ -110,10 +110,14 @@ async function main() {
       symbol: r.symbol,
       signal: signalLabel(r.signal),
       close: round(r.close),
-      'EMA20vs100%': round(strength(r)),
+      EMA20: round(r.indicators.ema20),
+      EMA50: round(r.indicators.ema50),
+      EMA100: round(r.indicators.ema100),
+      배열: r.indicators.ema20 > r.indicators.ema50 && r.indicators.ema50 > r.indicators.ema100
+        ? '정배열' : r.indicators.ema20 < r.indicators.ema50 && r.indicators.ema50 < r.indicators.ema100
+        ? '역배열' : '혼조',
       MACDhist: round(r.indicators.macdHist),
-      'EMA100기울기': round(r.indicators.ema100Slope),
-      ATR: round(r.indicators.atr),
+      '강도%': round(strength(r)),
     })),
   );
 }
