@@ -53,7 +53,25 @@ function extractCandles(payload: unknown): TossCandle[] {
 /** One master record from `toss-cli stock info <symbols> -o json` (an array). */
 interface TossStockInfo {
   symbol: string;
-  status: string;
+  name?: string;
+  status?: string;
+}
+
+/** Cache stock-master lookups so resolveSymbol + nameFor share a single CLI call per key. */
+const infoCache = new Map<string, TossStockInfo | null>();
+async function stockInfo(query: string): Promise<TossStockInfo | null> {
+  const key = query.trim().toUpperCase();
+  if (infoCache.has(key)) return infoCache.get(key)!;
+  let result: TossStockInfo | null = null;
+  try {
+    const payload = await tossJson(['stock', 'info', key, '-o', 'json']);
+    const rows = Array.isArray(payload) ? (payload as TossStockInfo[]) : [];
+    result = rows.find((r) => r?.symbol?.toUpperCase() === key) ?? rows[0] ?? null;
+  } catch {
+    result = null; // best-effort
+  }
+  infoCache.set(key, result);
+  return result;
 }
 
 export const adapter: Adapter = {
@@ -68,15 +86,11 @@ export const adapter: Adapter = {
   async resolveSymbol(input: string): Promise<string> {
     const sym = input.trim().toUpperCase();
     if (!sym) throw new Error('toss resolveSymbol: empty input.');
-    try {
-      const payload = await tossJson(['stock', 'info', sym, '-o', 'json']);
-      const rows = Array.isArray(payload) ? (payload as TossStockInfo[]) : [];
-      const match = rows.find((r) => r?.symbol?.toUpperCase() === sym) ?? rows[0];
-      if (match?.symbol) return match.symbol;
-    } catch {
-      // Master lookup is best-effort; fall through to the raw symbol.
-    }
-    return sym;
+    return (await stockInfo(sym))?.symbol ?? sym;
+  },
+
+  async nameFor(symbol: string): Promise<string | undefined> {
+    return (await stockInfo(symbol))?.name;
   },
 
   async fetchCandles(symbol: string, timeframe: string, count: number): Promise<Candle[]> {

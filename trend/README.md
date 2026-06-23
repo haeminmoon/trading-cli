@@ -26,9 +26,12 @@ npm run trend -- grvt btc --tf 4h,1d --image     # 타임프레임 지정
 npm run trend:scan -- grvt                       # 상승추세(LONG) 종목, 4h 기준
 npm run trend:scan -- grvt --tf 1d --filter short  # 일봉 하락추세
 npm run trend:scan -- grvt --filter all --json   # 전체, JSON
+
+# 명시 종목 리스트(워치리스트/섹터) 스캔 — 어떤 거래소든 가능 (listSymbols 불필요)
+npm run trend:scan -- toss --symbols 329180,042660,010140 --tf 1d --concurrency 1 --image
 ```
 
-옵션: `--tf 4h` · `--count 250`(최소 120) · `--filter long|short|all`(기본 long) · `--concurrency 8` · `--limit N`(앞 N개만) · `--json`. 결과는 `EMA20vs100%`(추세 강도) 기준 정렬, 데이터(120봉)가 부족한 신규 상장 종목은 자동 제외됩니다.
+옵션: `--symbols a,b,c`(명시 종목 리스트; 종목명/코드 자동 해석) · `--tf 4h` · `--count 250`(최소 120) · `--filter long|short|all`(기본 long) · `--concurrency 8`(토스 등 rate-limit 거래소는 1 권장) · `--limit N`(앞 N개만) · `--image`(종목별 차트 PNG 생성, `--out` 폴더) · `--json`. 결과는 `EMA20vs100%`(추세 강도) 기준 정렬, 데이터(120봉) 부족 종목은 자동 제외됩니다.
 
 ## 거래소별 타임프레임
 

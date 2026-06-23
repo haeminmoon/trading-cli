@@ -67,8 +67,9 @@ export async function renderChart(opts: {
   reason: string;
   outPath: string;
   bars?: number;
+  name?: string;
 }): Promise<string> {
-  const { candles, exchange, symbol, timeframe, signal, reason, outPath } = opts;
+  const { candles, exchange, symbol, timeframe, signal, reason, outPath, name } = opts;
   const bars = opts.bars ?? 120;
 
   const W = 1000;
@@ -114,7 +115,7 @@ export async function renderChart(opts: {
   const n = shown.length;
 
   // ---- Title bar ----
-  drawTitleBar(ctx, W, titleH, exchange, symbol, timeframe, signal, reason);
+  drawTitleBar(ctx, W, titleH, exchange, symbol, timeframe, signal, reason, name);
 
   if (n === 0) {
     ctx.fillStyle = THEME.textMuted;
@@ -300,6 +301,7 @@ function drawTitleBar(
   timeframe: string,
   signal: Signal,
   reason: string,
+  name?: string,
 ): void {
   ctx.fillStyle = THEME.bg;
   ctx.fillRect(0, 0, W, titleH);
@@ -314,7 +316,8 @@ function drawTitleBar(
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = THEME.text;
   ctx.font = 'bold 18px sans-serif';
-  const title = `${exchange} ${symbol} ${timeframe}`;
+  const nameLabel = name ? `${name} (${symbol})` : symbol;
+  const title = `${exchange} ${nameLabel} · ${timeframe}`;
   ctx.fillText(title, 16, 26);
 
   ctx.fillStyle = THEME.textMuted;

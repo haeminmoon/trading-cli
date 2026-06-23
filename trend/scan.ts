@@ -7,9 +7,12 @@
  *
  * Requires the exchange adapter to implement listSymbols() (currently: grvt).
  */
-import type { Adapter, Indicators, Signal } from './types';
+import { mkdirSync } from 'node:fs';
+import { resolve } from 'node:path';
+import type { Adapter, Candle, Indicators, Signal } from './types';
 import { computeIndicators } from './indicators';
 import { evaluateSignal, signalLabel } from './signal';
+import { renderChart } from './chart';
 
 import { adapter as hyperliquid } from './adapters/hyperliquid';
 import { adapter as backpack } from './adapters/backpack';
@@ -22,9 +25,17 @@ const ADAPTERS: Record<string, Adapter> = { hyperliquid, backpack, grvt, pacific
 
 interface Row {
   symbol: string;
+  name?: string;
   signal: Signal;
+  reason: string;
   close: number;
   indicators: Indicators;
+  candles: Candle[];
+  imagePath?: string;
+}
+
+function sanitize(s: string): string {
+  return s.replace(/[^A-Za-z0-9._-]/g, '_');
 }
 
 async function mapPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
@@ -62,6 +73,8 @@ async function main() {
   const concurrency = Math.max(1, parseInt(arg(argv, '--concurrency', '8')!, 10) || 8);
   const limit = arg(argv, '--limit') ? parseInt(arg(argv, '--limit')!, 10) : undefined;
   const json = argv.includes('--json');
+  const image = argv.includes('--image');
+  const outDir = arg(argv, '--out', 'trend/out')!;
   const wantSignal: Signal | null = filter === 'long' ? 1 : filter === 'short' ? -1 : null;
 
   const symbolsArg = arg(argv, '--symbols');
@@ -78,10 +91,11 @@ async function main() {
   const results = await mapPool(symbols, concurrency, async (raw): Promise<Row | null> => {
     try {
       const symbol = explicit ? await adapter.resolveSymbol(raw) : raw;
+      const name = adapter.nameFor ? await adapter.nameFor(symbol).catch(() => undefined) : undefined;
       const candles = await adapter.fetchCandles(symbol, tf, count);
       const indicators = computeIndicators(candles);
-      const { signal } = evaluateSignal(indicators);
-      return { symbol, signal, close: candles[candles.length - 1].c, indicators };
+      const { signal, reason } = evaluateSignal(indicators);
+      return { symbol, name, signal, reason, close: candles[candles.length - 1].c, indicators, candles };
     } catch {
       skipped++;
       return null;
@@ -93,6 +107,17 @@ async function main() {
   // Strongest trend first: EMA20 distance above/below EMA100 (%), signed by direction.
   const strength = (r: Row) => ((r.indicators.ema20 - r.indicators.ema100) / r.indicators.ema100) * 100;
   matched.sort((a, b) => (wantSignal === -1 ? strength(a) - strength(b) : strength(b) - strength(a)));
+
+  if (image) {
+    mkdirSync(resolve(outDir), { recursive: true });
+    for (const r of matched) {
+      const outPath = resolve(outDir, `${exchange}-${sanitize(r.symbol)}-${tf}.png`);
+      r.imagePath = await renderChart({
+        candles: r.candles, exchange, symbol: r.symbol, timeframe: tf,
+        signal: r.signal, reason: r.reason, outPath, name: r.name,
+      });
+    }
+  }
 
   if (json) {
     console.log(JSON.stringify({
@@ -112,6 +137,7 @@ async function main() {
     matched.map((r, i) => ({
       '#': i + 1,
       symbol: r.symbol,
+      종목: r.name ?? '-',
       signal: signalLabel(r.signal),
       close: round(r.close),
       EMA20: round(r.indicators.ema20),
@@ -124,6 +150,10 @@ async function main() {
       '강도%': round(strength(r)),
     })),
   );
+  if (image) {
+    console.log('');
+    for (const r of matched) if (r.imagePath) console.log(`  🖼  ${r.name ?? r.symbol} (${r.symbol}): ${r.imagePath}`);
+  }
 }
 
 function round(n: number): number {

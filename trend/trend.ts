@@ -88,6 +88,7 @@ async function main() {
   }
 
   const symbol = await adapter.resolveSymbol(args.symbol);
+  const name = adapter.nameFor ? await adapter.nameFor(symbol).catch(() => undefined) : undefined;
   const timeframes = args.tf ?? [...adapter.timeframes];
 
   const results: TimeframeResult[] = [];
@@ -106,6 +107,7 @@ async function main() {
           signal: r.signal,
           reason: r.reason,
           outPath,
+          name,
         });
       }
       delete (r as { _candles?: unknown })._candles;
@@ -119,11 +121,11 @@ async function main() {
   const bias = net > 0 ? 'LONG 우위' : net < 0 ? 'SHORT 우위' : '혼조/관망';
 
   if (args.json) {
-    console.log(JSON.stringify({ exchange: args.exchange, symbol, results, errors, net, bias }, null, 2));
+    console.log(JSON.stringify({ exchange: args.exchange, symbol, name, results, errors, net, bias }, null, 2));
     return;
   }
 
-  console.log(`\n📈 ${args.exchange} ${symbol} — 추세 판단 (EMA20/50/100 + MACD)\n`);
+  console.log(`\n📈 ${args.exchange} ${name ? `${name} (${symbol})` : symbol} — 추세 판단 (EMA20/50/100 + MACD)\n`);
   console.table(
     results.map((r) => ({
       TF: r.timeframe,

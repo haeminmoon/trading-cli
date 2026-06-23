@@ -56,4 +56,6 @@ export interface Adapter {
   fetchCandles(symbol: string, timeframe: string, count: number): Promise<Candle[]>;
   /** List every tradeable symbol on the exchange (for bulk scans). Optional. */
   listSymbols?(): Promise<string[]>;
+  /** Human-readable name for a symbol (e.g. '329180' → 'HD현대중공업'). Optional. */
+  nameFor?(symbol: string): Promise<string | undefined>;
 }

@@ -93,6 +93,9 @@ interface SearchHit {
   name: string;
 }
 
+/** Cache code → 종목명 so repeat lookups don't re-hit the CLI. */
+const nameCache = new Map<string, string | undefined>();
+
 export const adapter: Adapter = {
   name: 'kiwoom',
   timeframes: ['1h', '1d', '1w'],
@@ -122,6 +125,20 @@ export const adapter: Adapter = {
     if (hits.length === 0) throw new Error(`kiwoom: no symbol found for "${input}".`);
     const exact = hits.find((h) => h.name === trimmed);
     return (exact ?? hits[0]).code;
+  },
+
+  async nameFor(symbol: string): Promise<string | undefined> {
+    const key = symbol.trim();
+    if (nameCache.has(key)) return nameCache.get(key);
+    let name: string | undefined;
+    try {
+      const info = (await runKiwoom(['stock', 'info', key, '-o', 'json'])) as Record<string, unknown>;
+      name = typeof info?.stk_nm === 'string' ? (info.stk_nm as string).trim() : undefined;
+    } catch {
+      name = undefined; // best-effort
+    }
+    nameCache.set(key, name);
+    return name;
   },
 
   async fetchCandles(symbol: string, timeframe: string, count: number): Promise<Candle[]> {
