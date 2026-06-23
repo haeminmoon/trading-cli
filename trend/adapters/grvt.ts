@@ -71,6 +71,11 @@ export const adapter: Adapter = {
     return match.instrument;
   },
 
+  async listSymbols(): Promise<string[]> {
+    const instruments = await runJson<GrvtInstrument[]>(['market', 'instruments', '-o', 'json']);
+    return instruments.map((i) => i.instrument).filter(Boolean);
+  },
+
   async fetchCandles(symbol: string, timeframe: string, count: number): Promise<Candle[]> {
     const raw = await runJson<GrvtCandle[]>([
       'market',

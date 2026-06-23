@@ -54,4 +54,6 @@ export interface Adapter {
   resolveSymbol(input: string): Promise<string>;
   /** Fetch up to `count` normalized candles for symbol+timeframe, ascending by time. */
   fetchCandles(symbol: string, timeframe: string, count: number): Promise<Candle[]>;
+  /** List every tradeable symbol on the exchange (for bulk scans). Optional. */
+  listSymbols?(): Promise<string[]>;
 }

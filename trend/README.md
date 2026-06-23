@@ -18,6 +18,18 @@ npm run trend -- grvt btc --tf 4h,1d --image     # 타임프레임 지정
 
 옵션: `--tf <목록>`(기본=거래소별 세트) · `--count <n>`(기본 300, 최소 120) · `--image`(PNG 생성) · `--out <dir>`(기본 `trend/out`) · `--json`.
 
+### 일괄 스캔 (`trend:scan`)
+
+한 거래소의 **상장 전 종목**을 스캔해 추세 신호로 필터링/정렬합니다 (어댑터가 `listSymbols`를 지원해야 함 — 현재 grvt).
+
+```bash
+npm run trend:scan -- grvt                       # 상승추세(LONG) 종목, 4h 기준
+npm run trend:scan -- grvt --tf 1d --filter short  # 일봉 하락추세
+npm run trend:scan -- grvt --filter all --json   # 전체, JSON
+```
+
+옵션: `--tf 4h` · `--count 250`(최소 120) · `--filter long|short|all`(기본 long) · `--concurrency 8` · `--limit N`(앞 N개만) · `--json`. 결과는 `EMA20vs100%`(추세 강도) 기준 정렬, 데이터(120봉)가 부족한 신규 상장 종목은 자동 제외됩니다.
+
 ## 거래소별 타임프레임
 
 | 거래소 | 종류 | 추세 타임프레임 | 심볼 입력 |
