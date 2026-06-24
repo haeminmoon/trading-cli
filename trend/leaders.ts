@@ -125,6 +125,7 @@ interface Metric {
   highProx: number; // 0..1
   liqRaw: number;
   supply: number; // 0,50,100 (KR) or NaN (omit)
+  bars: number; // available daily history (data sufficiency signal)
   candles: Candle[];
   reason: string;
   signalNum: number;
@@ -176,7 +177,7 @@ async function main() {
           symbol, name, close: closes[closes.length - 1],
           rsRaw: rsRaw(closes), trendQ: trendQuality(ind, closes[closes.length - 1]),
           highProx: highProximity(candles), liqRaw: liquidityRaw(candles),
-          supply: exchange === 'kiwoom' ? supplyHits * 50 : NaN,
+          supply: exchange === 'kiwoom' ? supplyHits * 50 : NaN, bars: candles.length,
           candles, reason: evaluateSignal(ind).reason, signalNum: evaluateSignal(ind).signal,
         };
       } catch {
@@ -211,7 +212,7 @@ async function main() {
       exchange, scanned: scored.length, skipped,
       leaders: shown.map((r) => ({
         symbol: r.symbol, name: r.name, score: round(r.score), rsPct: round(r.rsPct),
-        trendQuality: round(r.trendQ * 100), highProximity: round(r.highProx * 100),
+        trendQuality: round(r.trendQ * 100), highProximity: round(r.highProx * 100), bars: r.bars,
         liqPct: round(r.liqPct), supply: Number.isFinite(r.supply) ? r.supply : null, close: r.close,
         imagePath: r.imagePath,
       })),
@@ -228,9 +229,10 @@ async function main() {
       row['점수'] = round(r.score);
       row['RS%'] = round(r.rsPct);
       row['추세'] = round(r.trendQ * 100);
-      row['신고가%'] = round(r.highProx * 100);
+      row['고점%'] = round(r.highProx * 100); // proximity to high over AVAILABLE history (not always 52wk)
       row['유동성%'] = round(r.liqPct);
       if (isKR) row['수급'] = r.supply >= 100 ? '외인+기관' : r.supply >= 50 ? '한쪽' : '-';
+      row['봉수'] = r.bars < 150 ? `${r.bars}⚠` : r.bars; // ⚠ = short history, lower reliability
       row['close'] = r.close;
       return row;
     }),
