@@ -20,7 +20,7 @@ npm run trend -- grvt btc --tf 4h,1d --image     # 타임프레임 지정
 
 ### 일괄 스캔 (`trend:scan`)
 
-한 거래소의 **상장 전 종목**을 스캔해 추세 신호로 필터링/정렬합니다 (어댑터가 `listSymbols`를 지원해야 함 — 현재 grvt).
+한 거래소의 **상장 전 종목**을 스캔해 추세 신호로 필터링/정렬합니다 (`listSymbols` 지원: grvt = 전 종목, kiwoom = 거래대금 상위 ETF 제외; 그 외는 `--symbols`).
 
 ```bash
 npm run trend:scan -- grvt                       # 상승추세(LONG) 종목, 4h 기준
@@ -31,7 +31,12 @@ npm run trend:scan -- grvt --filter all --json   # 전체, JSON
 npm run trend:scan -- toss --symbols 329180,042660,010140 --tf 1d --concurrency 1 --image
 ```
 
-옵션: `--symbols a,b,c`(명시 종목 리스트; 종목명/코드 자동 해석) · `--tf 4h` · `--count 250`(최소 120) · `--filter long|short|all`(기본 long) · `--concurrency 8`(토스 등 rate-limit 거래소는 1 권장) · `--limit N`(앞 N개만) · `--image`(종목별 차트 PNG 생성, `--out` 폴더) · `--json`. 결과는 `EMA20vs100%`(추세 강도) 기준 정렬, 데이터(120봉) 부족 종목은 자동 제외됩니다.
+```bash
+# 멀티 타임프레임 AND — 여러 TF 모두 신호 충족해야 매칭 (강력한 추세 정렬 필터)
+npm run trend:scan -- kiwoom --tf 1d,1w --filter long   # 일봉 AND 주봉 둘 다 상승추세
+```
+
+옵션: `--symbols a,b,c`(명시 종목 리스트; 종목명/코드 자동 해석) · `--tf 4h` (콤마로 여러 개 → **모든 TF에서 신호 충족해야 매칭**, 예 `1d,1w`) · `--count 250`(최소 120) · `--filter long|short|all`(기본 long) · `--concurrency 8`(토스/키움 등 rate-limit 거래소는 낮게) · `--limit N`(앞 N개만) · `--image`(종목별 차트 PNG, `--out` 폴더) · `--json`. 단일 TF면 EMA20/50/100·배열·MACD 상세, 멀티 TF면 TF별 신호 컬럼을 표시. 데이터(120봉) 부족 종목은 자동 제외 — **주봉(1w)은 EMA100에 ~120주가 필요해 신생 거래소(크립토)·신규 상장주는 제외됨**(키움 대형주는 가능).
 
 ## 주도주 스캐너 (`trend:leaders`)
 

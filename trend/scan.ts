@@ -31,6 +31,7 @@ interface Row {
   close: number;
   indicators: Indicators;
   candles: Candle[];
+  perTf: { tf: string; signal: Signal }[];
   imagePath?: string;
 }
 
@@ -67,7 +68,9 @@ async function main() {
   }
   const adapter = ADAPTERS[exchange.toLowerCase()];
 
-  const tf = arg(argv, '--tf', '4h')!;
+  const tfs = (arg(argv, '--tf', '4h')!).split(',').map((s) => s.trim()).filter(Boolean);
+  const tf = tfs[0]; // primary timeframe — used for sorting metrics, EMA display, and images
+  const multiTf = tfs.length > 1;
   const count = Math.max(120, parseInt(arg(argv, '--count', '250')!, 10) || 250);
   const filter = (arg(argv, '--filter', 'long') as 'long' | 'short' | 'all')!;
   const concurrency = Math.max(1, parseInt(arg(argv, '--concurrency', '8')!, 10) || 8);
@@ -85,17 +88,27 @@ async function main() {
   }
   let symbols = explicit ?? (await adapter.listSymbols!());
   if (limit) symbols = symbols.slice(0, limit);
-  if (!json) console.error(`Scanning ${symbols.length} ${exchange} symbols on ${tf} (count=${count}, conc=${concurrency})…`);
+  if (!json) console.error(`Scanning ${symbols.length} ${exchange} symbols on ${tfs.join('+')} (count=${count}, conc=${concurrency})…`);
 
   let skipped = 0;
   const results = await mapPool(symbols, concurrency, async (raw): Promise<Row | null> => {
     try {
       const symbol = explicit ? await adapter.resolveSymbol(raw) : raw;
       const name = adapter.nameFor ? await adapter.nameFor(symbol).catch(() => undefined) : undefined;
-      const candles = await adapter.fetchCandles(symbol, tf, count);
-      const indicators = computeIndicators(candles);
-      const { signal, reason } = evaluateSignal(indicators);
-      return { symbol, name, signal, reason, close: candles[candles.length - 1].c, indicators, candles };
+      const perTf: { tf: string; signal: Signal }[] = [];
+      let primary: { indicators: Indicators; reason: string; candles: Candle[] } | null = null;
+      for (const t of tfs) {
+        const candles = await adapter.fetchCandles(symbol, t, count);
+        const indicators = computeIndicators(candles);
+        const { signal, reason } = evaluateSignal(indicators);
+        perTf.push({ tf: t, signal });
+        if (!primary) primary = { indicators, reason, candles };
+      }
+      const p = primary!;
+      return {
+        symbol, name, perTf, signal: perTf[0].signal, reason: p.reason,
+        close: p.candles[p.candles.length - 1].c, indicators: p.indicators, candles: p.candles,
+      };
     } catch {
       skipped++;
       return null;
@@ -103,7 +116,8 @@ async function main() {
   });
 
   const rows = results.filter((r): r is Row => r !== null);
-  const matched = wantSignal === null ? rows : rows.filter((r) => r.signal === wantSignal);
+  // Multi-TF AND: a symbol matches only if EVERY requested timeframe meets the filter signal.
+  const matched = wantSignal === null ? rows : rows.filter((r) => r.perTf.every((p) => p.signal === wantSignal));
   // Strongest trend first: EMA20 distance above/below EMA100 (%), signed by direction.
   const strength = (r: Row) => ((r.indicators.ema20 - r.indicators.ema100) / r.indicators.ema100) * 100;
   matched.sort((a, b) => (wantSignal === -1 ? strength(a) - strength(b) : strength(b) - strength(a)));
@@ -121,9 +135,9 @@ async function main() {
 
   if (json) {
     console.log(JSON.stringify({
-      exchange, tf, scanned: rows.length, skipped, filter,
+      exchange, tf: tfs, scanned: rows.length, skipped, filter,
       results: matched.map((r) => ({
-        symbol: r.symbol, signal: r.signal, close: r.close,
+        symbol: r.symbol, name: r.name, signals: r.perTf, close: r.close,
         trendPct: Number(strength(r).toFixed(2)), macdHist: r.indicators.macdHist,
         atr: r.indicators.atr, ema100Slope: r.indicators.ema100Slope,
       })),
@@ -132,23 +146,31 @@ async function main() {
   }
 
   const labelKo = filter === 'long' ? '상승추세' : filter === 'short' ? '하락추세' : '전체';
-  console.log(`\n📈 ${exchange} — ${labelKo} 종목 (${tf} 기준)  ${matched.length}개 / 스캔 ${rows.length} (제외 ${skipped})\n`);
+  const tfLabel = multiTf ? `${tfs.join('+')} 모두` : `${tf} 기준`;
+  console.log(`\n📈 ${exchange} — ${labelKo} 종목 (${tfLabel})  ${matched.length}개 / 스캔 ${rows.length} (제외 ${skipped})\n`);
   console.table(
-    matched.map((r, i) => ({
-      '#': i + 1,
-      symbol: r.symbol,
-      종목: r.name ?? '-',
-      signal: signalLabel(r.signal),
-      close: round(r.close),
-      EMA20: round(r.indicators.ema20),
-      EMA50: round(r.indicators.ema50),
-      EMA100: round(r.indicators.ema100),
-      배열: r.indicators.ema20 > r.indicators.ema50 && r.indicators.ema50 > r.indicators.ema100
-        ? '정배열' : r.indicators.ema20 < r.indicators.ema50 && r.indicators.ema50 < r.indicators.ema100
-        ? '역배열' : '혼조',
-      MACDhist: round(r.indicators.macdHist),
-      '강도%': round(strength(r)),
-    })),
+    matched.map((r, i) => {
+      const row: Record<string, unknown> = { '#': i + 1, symbol: r.symbol, 종목: r.name ?? '-' };
+      if (multiTf) {
+        for (const p of r.perTf) row[p.tf] = signalLabel(p.signal);
+        row['강도%'] = round(strength(r));
+        row['close'] = round(r.close);
+        return row;
+      }
+      return {
+        ...row,
+        signal: signalLabel(r.signal),
+        close: round(r.close),
+        EMA20: round(r.indicators.ema20),
+        EMA50: round(r.indicators.ema50),
+        EMA100: round(r.indicators.ema100),
+        배열: r.indicators.ema20 > r.indicators.ema50 && r.indicators.ema50 > r.indicators.ema100
+          ? '정배열' : r.indicators.ema20 < r.indicators.ema50 && r.indicators.ema50 < r.indicators.ema100
+          ? '역배열' : '혼조',
+        MACDhist: round(r.indicators.macdHist),
+        '강도%': round(strength(r)),
+      };
+    }),
   );
   if (image) {
     console.log('');

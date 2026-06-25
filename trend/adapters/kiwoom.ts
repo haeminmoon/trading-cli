@@ -96,9 +96,22 @@ interface SearchHit {
 /** Cache code → 종목명 so repeat lookups don't re-hit the CLI. */
 const nameCache = new Map<string, string | undefined>();
 
+/** KR ETF/ETN brand prefixes — excluded from the scan universe (주도주 = 개별주). */
+const ETF_RE = /^(KODEX|TIGER|KBSTAR|ARIRANG|HANARO|KOSEF|PLUS|SOL|ACE|RISE|TIMEFOLIO|히어로즈|마이티|FOCUS|BNK|파워|KIWOOM|WON|KCGI|마이다스|TREX|UNICORN)\b/i;
+
 export const adapter: Adapter = {
   name: 'kiwoom',
   timeframes: ['1h', '1d', '1w'],
+
+  /** Universe = 거래대금 상위 (most-liquid), ETF/ETN excluded. Codes normalized to bare 6-char. */
+  async listSymbols(): Promise<string[]> {
+    const payload = (await runKiwoom(['ranking', 'amount', '-m', '000', '-x', '3', '-o', 'json'])) as Record<string, unknown>;
+    const list = (payload?.trde_prica_upper as Record<string, string>[]) ?? [];
+    return list
+      .filter((r) => !ETF_RE.test((r.stk_nm || '').trim()))
+      .map((r) => String(r.stk_cd).replace(/_[A-Za-z]+$/, '').replace(/^A(?=\d{6})/, ''))
+      .filter(Boolean);
+  },
 
   async resolveSymbol(input: string): Promise<string> {
     const trimmed = input.trim();
